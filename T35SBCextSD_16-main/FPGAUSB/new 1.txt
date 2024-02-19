@@ -1,0 +1,88 @@
+                ;----------------------------------------------------
+                ;   SERIAL PORT GET CHARACTER ROUTINE
+                ;----------------------------------------------------
+                ;
+ 0303 D5        RECV:   PUSH    D               ;SAVE
+ 0304 11BBBB    MSEC:   LXI     D,0BBBBH        ;1 SEC DCR COUNT
+ 0307 DB34      MWTI:   IN      USB$STATUS$PORT
+ 0309 E601              ANI     USB$RXE
+ 030B C21D03            JNZ     MCHAR           ;GOT CHAR
+ 030E 1D                DCR     E               ;COUNT DOWN
+ 030F C20703            JNZ     MWTI            ;FOR TIMEOUT
+ 0312 15                DCR     D
+ 0313 C20703            JNZ     MWTI
+ 0316 05                DCR     B               ;DCR # OF SECONDS
+ 0317 C20403            JNZ     MSEC            ;MODEM TIMED OUT RECEIVING
+ 031A D1                POP     D               ;RESTORE D,E
+ 031B 37                STC                     ;CARRY SHOWS TIMEOUT
+ 031C C9                RET
+                                                ;GOT MODEM CHAR
+ 031D DB35      MCHAR   IN      USB$DATA$PORT
+ 031F D1                POP     D               ;RESTORE DE
+ 0320 F5                PUSH    PSW             ;CALC CHECKSUM
+ 0321 81                ADD     C
+ 0322 4F                MOV     C,A
+ 0323 F1                POP     PSW
+ 0324 B7                ORA     A               ;TURN OFF CARRY TO SHOW NO TIMEOUT
+ 0325 C9                RET
+
+                ;----------------------------------------------------
+                ;   SERIAL PORT SEND CHARACTER ROUTINE
+                ;----------------------------------------------------
+                ;
+ 0326 F5        SEND    PUSH    PSW             ;CHECK IF MONITORING OUTPUT
+ 0327 81                ADD     C               ;CALC CKSUM
+ 0328 4F                MOV     C,A
+ 0329 DB34      SENDW   IN      USB$STATUS$PORT ;DON'T WORRY PC IS ALWAYS FAST ENOUGH!
+ 032B E602              ANI     USB$TXE
+ 032D C22903            JNZ     SENDW
+ 0330 F1                POP     PSW             ;GET CHAR
+ 0331 D335              OUT     USB$DATA$PORT
+ 0333 C9                RET
+
+                ;----------------------------------------------------
+                ;   SPEECH PORT, SEND CHARACTER ROUTINE
+                ;----------------------------------------------------
+                ;
+ 0334 F5        SPEAK   PUSH    PSW             ;CHECK IF MONITORING OUTPUT
+ 0335 DBA0      SPEAKW  IN      SPEECH$CTL$PORT
+ 0337 E604              ANI     SPEECH$SEND$MASK
+ 0339 FE04              CPI     SPEECH$SEND$READY
+ 033B C23503            JNZ     SPEAKW
+ 033E F1                POP     PSW             ;GET CHAR
+ 033F D3A2              OUT     SPEECH$DATA$PORT
+ 0341 C9                RET
+
+ 0342 7E        SMSG:   MOV     A,M             ;SPEAK STRING AT [HL] UP TO '$'
+ 0343 23                INX     H
+ 0344 FE0D              CPI     CR              ;NOTE CR ENDS STRING AND INITILIZES V-STAMP CHIP TO SPEAK
+ 0346 CA4F03            JZ      DONE$SP
+ 0349 CD3403            CALL    SPEAK
+ 034C C34203            JMP     SMSG
+ 034F CD3403    DONESP: CALL    SPEAK
+ 0352 C9                RET
+
+                ;PRINT TIMEOUT MESSAGE
+ 0353 11A705    TOUT    LXI     D,TOUTM
+ 0356 CDF302            CALL    PRINT$MESSAGE
+                PRINT$ERRCT:
+ 0359 3A4D06            LDA     ERRCT
+ 035C CD7503            CALL    HEXO            ;FALL INTO CR/LF
+                ;
+ 035F 3E0D      CRLF    MVI     A,13
+ 0361 CD6603            CALL    TYPE
+ 0364 3E0A              MVI     A,10
+                ;
+ 0366 F5        TYPE    PUSH    PSW
+ 0367 C5                PUSH    B
+ 0368 D5                PUSH    D
+ 0369 E5                PUSH    H
+ 036A 5F                MOV     E,A
+ 036B 0E02              MVI     C,WRCON
+ 036D CD0500            CALL    BDOS
+ 0370 E1                POP     H
+ 0371 D1                POP     D
+ 0372 C1                POP     B
+♀ 0373 F1                POP     PSW
+ 0374 C9                RET
+                ;
